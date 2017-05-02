@@ -3,6 +3,13 @@
 ## Image signing with RHEL
 The ```atomic``` command creates an image signature by using a private gpg key to encrypt the container image manifest.
 
+### Start a registry container w/persistent storage on the host.
+```
+chcon -R system_u:object_r:svirt_sandbox_file_t:s0 /var/lib/docker-registry
+
+docker run -d -p 5000:5000 --restart always --name registry -v /var/lib/docker-registry:/var/lib/registry registry:2
+```
+
 ### Generate the gpg keys. 
 First, start the random data generator as this will speed up the key generation process.
 ```
@@ -26,9 +33,9 @@ Choose an image and tag it for the registry.
 ```
 docker images
 
-docker tag mystery rhserver1.example.com:5000/mystery
+docker tag mystery localhost:5000/mystery
 
-atomic push --sign-by demo2017 rhserver1.example.com:5000/mystery:latest
+atomic push --sign-by demo2017 localhost:5000/mystery:latest
 ```
 Looks like the push was sucessfull and a signature was created and 
 stored locally. We can verify that by examing the following directory.
@@ -49,7 +56,7 @@ atomic trust show
 ``` 
 Now we'll try an image pull and see that it is rejected by the trust policy.
 ```
-docker pull rhserver1.example.com:5000/mystery:latest
+docker pull localhost:5000/mystery:latest
 ```
 Next we'll create a policy to trust images signed from our registry.
 
@@ -61,14 +68,14 @@ file /root/demo2017.pub
 ```
 Now use the signature and the key to establish the trust.
 ```
-atomic trust add rhserver1.example.com:5000 --sigstore=file:///var/lib/atomic/sigstore --pubkeys=/root/demo2017.pub
+atomic trust add localhost:5000 --sigstore=file:///var/lib/atomic/sigstore --pubkeys=/root/demo2017.pub
 
 atomic trust show
 ```
 Notice that the trust policy only accepts signed images from our registry.
 Let's try the pull again and it should succeed.
 ```
-docker pull rhserver1.example.com:5000/mystery:latest
+docker pull localhost:5000/mystery:latest
 ```
 
 
